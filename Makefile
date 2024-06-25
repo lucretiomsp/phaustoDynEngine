@@ -3,7 +3,7 @@
 # Compiler
 CXX = g++
 # Compiler flags
-CXXFLAGS = -std=c++11 -O3
+CXXFLAGS = -std=c++11 -O3 -DINTERP_DSP -DPORTAUDIO_DRIVER -DSOUNDFILE -DDAISY
 
 # Directories
 SRC_DIR = architecture/faust/dsp
@@ -16,12 +16,11 @@ SRCS = $(SRC_DIR)/faust-dynamic-engine.cpp
 # Target dynamic library
 TARGET = $(LIB_DIR)/libdynamic-engine.dll
 
-# Libraries and frameworks
+# Libraries
 LIBS = -lportaudio -lfaust
-FRAMEWORKS = -lcorefoundation -laudiounit
-
-# Includes and library paths
+# Include paths
 INCLUDES = -I/Users/domenicocipriani/MyStuff/coding/faust/architecture
+# Library paths
 LDFLAGS = -L$(LIB_DIR)
 
 # Phony targets
@@ -32,12 +31,13 @@ all: $(TARGET)
 
 # Rule to build the dynamic library
 $(TARGET): $(SRCS) | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(LDFLAGS) $(SRCS) $(LIBS) $(FRAMEWORKS) -shared -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(LDFLAGS) $(SRCS) $(LIBS) -shared -o $@
 
 # Create build directory
 $(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
 
 # Clean target
 clean:
-	rm -rf $(BUILD_DIR) $(TARGET)
+	@if exist $(BUILD_DIR) rmdir /S /Q $(BUILD_DIR)
+	@if exist $(TARGET) del $(TARGET)
