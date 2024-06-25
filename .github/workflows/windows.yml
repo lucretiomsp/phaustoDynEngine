@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    if: github.repository_owner == 'grame-cncm' || github.event_name == 'pull_request'
+ 
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
@@ -23,7 +23,7 @@ jobs:
     - name: Get latest CMake and ninja
       uses: lukka/get-cmake@latest
 
-    - name: Build Faust
+    - name: Build DynamicEngine
       run: |
-        make -C build cmake BACKENDS=regular.cmake TARGETS=win-ci.cmake
+    
         make -C build
