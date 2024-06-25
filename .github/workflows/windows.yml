@@ -22,7 +22,9 @@ jobs:
   
     - name: Get latest CMake and ninja
       uses: lukka/get-cmake@latest
-
+    - name: Run configure script
+      run: |
+        bash ./configure
     - name: Build DynamicEngine
       run: |
     
