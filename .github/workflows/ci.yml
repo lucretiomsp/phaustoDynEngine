@@ -1,42 +1,34 @@
 name: CI
 
-on:
-  push:
-  pull_request:
+on: [push, pull_request]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
       - uses: actions/checkout@v3
 
-      # 2️⃣ Install build tools
       - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y build-essential g++ 
+        run: sudo apt-get update && sudo apt-get install -y build-essential g++
 
-      # 3️⃣ Create build folder
-      - name: Prepare build folder
-        run: mkdir -p build
-
-      # 4️⃣ Copy library and test files into build folder
-      - name: Copy libraries and test files
-        run: |
-          cp -r librariesBundle_Linux/* build/
-          cp tests/test_dynamic_engine.cpp build/
-
-      # 5️⃣ Check shared library dependencies
       - name: Check library dependencies
         run: |
-          cd build
-          export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
-          ldd libdynamic-engine.so | grep "not found" && exit 1 || echo "All dependencies found"
+          LIB_DIR=$(pwd)/librariesBundle_Linux
+          export LD_LIBRARY_PATH=$LIB_DIR:$LD_LIBRARY_PATH
+          echo "🔍 Checking shared library dependencies..."
+          if ldd $LIB_DIR/libdynamic-engine.so | grep "not found"; then
+            echo "❌ Missing dependencies in libdynamic-engine.so"
+            exit 1
+          else
+            echo "✅ All dependencies found"
+          fi
 
-      # 6️⃣ Compile and run test program
-      - name: Compile and run test
+      - name: Compile and run test program
         run: |
-          cd build
-          export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
-          g++ test_dynamic_engine.cpp -L. -ldynamic-engine -o test_dynamic_engine
+          LIB_DIR=$(pwd)/librariesBundle_Linux
+          export LD_LIBRARY_PATH=$LIB_DIR:$LD_LIBRARY_PATH
+          echo "🔧 Compiling test program..."
+          g++ tests/test_dynamic_engine.cpp -L$LIB_DIR -ldynamic-engine -o test_dynamic_engine
+          echo "🚀 Running test..."
           ./test_dynamic_engine
