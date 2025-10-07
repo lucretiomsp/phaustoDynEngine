@@ -7,28 +7,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout the repository
       - uses: actions/checkout@v3
 
+      # 2. Install build tools
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y build-essential g++
 
+      # 3. Copy libraries and tests into a build folder
+      - name: Prepare build folder
+        run: |
+          mkdir -p build
+          cp -r librariesBundle_Linux/* build/
+          cp -r tests/* build/
+
+      # 4. Check library dependencies
       - name: Check library dependencies
         run: |
-          LIB_DIR=$(pwd)/librariesBundle_Linux
-          export LD_LIBRARY_PATH=$LIB_DIR:$LD_LIBRARY_PATH
+          cd build
+          export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
           echo "🔍 Checking shared library dependencies..."
-          if ldd $LIB_DIR/libdynamic-engine.so | grep "not found"; then
-            echo "❌ Missing dependencies in libdynamic-engine.so"
-            exit 1
-          else
-            echo "✅ All dependencies found"
-          fi
+          for lib in *.so*; do
+            ldd "$lib" | grep "not found" && echo "❌ Missing dependency in $lib" && exit 1 || true
+          done
+          echo "✅ All dependencies found"
 
-      - name: Compile and run test program
+      # 5. Compile and run the test program
+      - name: Build and run test program
         run: |
-          LIB_DIR=$(pwd)/librariesBundle_Linux
-          export LD_LIBRARY_PATH=$LIB_DIR:$LD_LIBRARY_PATH
-          echo "🔧 Compiling test program..."
-          g++ tests/test_dynamic_engine.cpp -L$LIB_DIR -ldynamic-engine -o test_dynamic_engine
-          echo "🚀 Running test..."
-          ./test_dynamic_engine
+          cd build
+          g++ test_dynamic_engine.cpp -L. -ldynamic-engine -o test_dynamic_engine
+          echo "🚀 Running test program..."
+          LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH ./test_dynamic_engine
