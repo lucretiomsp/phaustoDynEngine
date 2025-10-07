@@ -24,7 +24,7 @@ jobs:
       - name: Copy libraries and test files
         run: |
           cp -r librariesBundle_Linux/* build/
-          cp test/test_dynamic_engine.cpp build/
+          cp tests/test_dynamic_engine.cpp build/
 
       # 5️⃣ Check shared library dependencies
       - name: Check library dependencies
