@@ -1,0 +1,60 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake
+
+      - name: Build dynamic library
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make -j$(nproc)
+
+      - name: Validate dynamic libraries
+        run: |
+          cd build
+          echo "=== Detecting shared libraries ==="
+          SO_FILES=$(find . -maxdepth 1 -type f -name "*.so")
+          if [ -z "$SO_FILES" ]; then
+            echo "::error::No .so files found in build directory!"
+            exit 1
+          fi
+
+          echo "Found shared libraries:"
+          echo "$SO_FILES"
+
+          for lib in $SO_FILES; do
+            echo "=== Checking dependencies for $lib ==="
+            if ldd "$lib" | grep "not found"; then
+              echo "::error::Missing dependency in $lib"
+              exit 1
+            fi
+
+            echo "=== Checking exported symbols in $lib ==="
+            if ! nm -D "$lib" | grep -q createDspFromBoxes; then
+              echo "::error::Symbol 'createDspFromBoxes' not found in $lib"
+              exit 1
+            fi
+          done
+
+      - name: Compile and run test program
+        run: |
+          cd build
+
+          LIB=$(find . -maxdepth 1 -type f -name "*.so" | head -n 1)
+          echo "Using library: $LIB"
+
+          # Compile your actual test file
+          g++ ../tests/test_dynamic_engine.cpp -L. -ldynamic-engine -ldl -o test_dynamic_engine
+
+          echo "=== Running test_dynamic_engine ==="
+          LD_LIBRARY_PATH=. ./test_dynamic_engine
