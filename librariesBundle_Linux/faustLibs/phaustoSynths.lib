@@ -1,0 +1,156 @@
+import ("stdfaust.lib");
+
+// this is a simple virtual analog kick drum with a quadratic distortion
+basicKick = (((oscillator * ampEnvelope) * volume) : ef.softclipQuadratic ) : _
+with {
+note = vslider("kickNote", 60, 24, 88, 1);
+
+
+gate = button("kickGate");
+ampEnvelope = en.adsr(0.001, 0.18, 0, 0.20, gate);
+
+pitchEnvelope = en.adsr(0.001, 0.18, 0, 0.20, gate);
+volume = hslider("kickVolume", 0.6, 0, 1, 0.01);
+
+pitchEnvAmount = vslider("kickBend", 36, 0.1, 48, 1);
+pitchBend = pitchEnvelope * pitchEnvAmount;
+// note must be transposed down
+freq = ba.midikey2hz(note -36 + pitchBend);
+
+oscillator = os.osc(freq);
+
+};
+
+// #########################################################
+
+// FM HIH-HAT KIND OF NASTY
+hiHatFM = (opA * envA * volume) : fi.highpass(2, 3200) : _
+with {
+gate = button("hatFMGate");
+opADecay = vslider("hatFMDecay", 0.36, 0.1, 1.29, 0.01);
+envA = en.ar(0.001, opADecay, gate);
+note = vslider("hatFMNote", 60, 24, 88,1);
+carFreq = ba.midikey2hz(note);
+
+
+opA = os.osc(carFreq + opB);
+
+opB = os.osc(carFreq +732 + opC) * opBLevel * envB;
+envB = en.ar(0.001, opADecay / 2.4, gate);
+opBLevel = vslider("hatFMOpBLevel", 5800, 0, 5800, 0.001);
+
+opC  = os.osc(carFreq + 149 + opD  ) * opCLevel * envC;
+envC = en.ar(0.001, 0.21, gate);
+opCLevel = vslider("hatFMOpCLevel", 1197, 0, 6316, 0.01);
+
+opD  = os.osc(carFreq + 289) * opDLevel * envD;
+envD = en.ar(0.001, 0.16, gate);
+opDLevel = vslider("hatFMOpDLevel", 243, 0, 3860, 0.01);
+
+volume = vslider("hatFMVolume", 0.1 , 0 , 4, 0.01);
+
+};
+
+/// #############################################
+
+// elementary clap from a version written in Elementary and JavaScript by Nick Thompson.
+elementaryClap = (sy.clap(tone, 0.001, decay, gate) * volume ): _
+with {
+decay = hslider("clapDecay", 0.1, 0.05, 0.5, 0.001 );
+gate = button("clapGate");
+note = hslider("clapNote", 60, 24, 88, 1);
+tone = ba.midikey2hz(note + 24);
+volume = hslider("clapVolume", 0.5, 0, 1, 0.01);
+
+};
+
+/// ###########################################
+// clave based on the Faust standard library popDrum
+
+clave = (sy.popFilterDrum(freq,q,gate) * volume) : _
+with{
+q = hslider("claveDrumQ", 41, 20, 70, 0.01 );
+
+gate = button("claveGate");
+note = hslider("claveNote", 60, 24, 88, 1);
+freq = ba.midikey2hz(note + 24);
+volume = hslider("claveVolume", 0.7, 0., 1, 0.01 );
+
+};
+
+// ########################################################
+
+
+// dubdub synth from the Faust standard library adapted for Pharo Live Coding
+
+dubdub = sy.dubDub(freq,ctFreq,q,gate) * volume : _
+
+with {
+
+ctFreq = hslider("dubdubCutoff", 500, 50 , 2000, 1 );
+q = hslider("dubdubQ", 5, 2, 30, 0.01 );
+gate = button("dubdubGate");
+note = hslider("dubdubNote", 60, 24, 88, 1);
+freq = ba.midikey2hz(note );
+volume = hslider("dubdubVolume", 0.6, 0, 1 , 0.01);
+};
+process = dubdub;
+
+// #################################################
+
+// very basic SnareDrum
+
+basicSnare = (((no.pink_noise + oscillator) * ampEnvelope) : fi.highpass (2, 400) * volume) : _
+with{
+
+oscillator = os.triangle(freq) * 0.2;
+gate = button("snareGate");
+ampEnvelope = en.adsr(0.001, decay, 0, 0.12, gate);
+pitchEnvelope = en.ar(0.001, 0.1, gate);
+decay = hslider("snareDecay", 0.32, 0.04, 3, 0.01 );
+
+note = hslider("snareNote", 60, 24, 88, 1);
+freq = ba.midikey2hz(note - 12) + 24 * pitchEnvelope;
+volume = hslider("snareVolume", 0.7, 0, 1, 0.01 );
+};
+
+// ##########################
+
+// djembe adaptation from standard library
+basicDjembe = pm.djembe(freq,strikePosition,strikeSharpness,gain, gate) : _
+with{
+
+strikePosition = hslider("djembeSttrikePosition", 0.32, 0.04, 1, 0.01 );
+gate = button("djembeGate");
+
+
+strikeSharpness  = hslider("djembeStrikeSharpness", 0.32, 0.04, 1, 0.01 );
+
+note = hslider("djembeNote", 60, 24, 88, 1);
+freq = ba.midikey2hz(note);
+gain = hslider("djembeVolume", 0.6, 0, 1 , 0.01);
+};
+
+// this is an acicdic bass line
+acidBasic = ((oscillator * ampEnvelope) * volume) : ve.diodeLadder (cutoff, reso) <: _ 
+with {
+note = vslider("acidNote", 60, 24, 88, 1);
+
+
+gate = button("acidGate");
+ampEnvelope = en.adsr(0.001, 0.28, 0, 0.20, gate);
+
+filterEnvelope = en.adsr(0.001, filterDecay, 0, 0.01, gate);
+filterDecay = hslider("acidDecay", 0.36, 0, 0.5, 0.01);
+volume = hslider("acidVolume", 0.6, 0, 1, 0.01);
+
+filterEnvAmount = hslider("acidEnv", 0.75, 0, 1, 0.01);
+
+cutoff =  min( 0.99, hslider( "acidCutoff", 0.081, 0, 1 , 0.001) + filterEnvAmount * filterEnvelope );
+reso = hslider( "acidResonance", 16.2, 5, 30 , 0.1);
+// note must be transposed down
+freq = ba.midikey2hz(note -24);
+
+oscillator = os.sawtooth(freq);
+
+};
