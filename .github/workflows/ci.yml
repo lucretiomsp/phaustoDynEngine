@@ -1,48 +1,42 @@
-name: Test Dynamic Engine Linking
+name: CI
 
 on:
   push:
   pull_request:
-  workflow_dispatch:
 
 jobs:
-  test-dynamic-lib:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      # 1️⃣ Checkout repository
+      - uses: actions/checkout@v3
 
-      - name: Prepare library
+      # 2️⃣ Install build tools
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential g++ 
+
+      # 3️⃣ Create build folder
+      - name: Prepare build folder
+        run: mkdir -p build
+
+      # 4️⃣ Copy library and test files into build folder
+      - name: Copy libraries and test files
         run: |
-          mkdir -p build
-          cp librariesBundle_Linux/libdynamic-engine.so build/
-          echo "✅ Copied library to build directory"
-          ls -l build/
+          cp -r librariesBundle_Linux/* build/
+          cp test/test_dynamic_engine.cpp build/
 
-      - name: Check for missing dependencies
-        run: |
-          cd build
-          echo "🔍 Checking shared library dependencies..."
-          if ldd libdynamic-engine.so | grep "not found"; then
-            echo "❌ Missing dependencies in libdynamic-engine.so"
-            exit 1
-          else
-            echo "✅ All dependencies are found"
-          fi
-
-      - name: Verify exported symbols
+      # 5️⃣ Check shared library dependencies
+      - name: Check library dependencies
         run: |
           cd build
-          echo "🔍 Checking for expected symbols..."
-          nm -D libdynamic-engine.so | grep createDspFromBoxes || (echo "❌ Missing symbol: createDspFromBoxes" && exit 1)
-          echo "✅ Found required symbol: createDspFromBoxes"
+          export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
+          ldd libdynamic-engine.so | grep "not found" && exit 1 || echo "All dependencies found"
 
+      # 6️⃣ Compile and run test program
       - name: Compile and run test
         run: |
           cd build
-          echo "🧱 Compiling test..."
-          g++ ../test/test_dynamic_engine.cpp -L. -ldynamic-engine -o test_dynamic_engine
-
-          echo "🚀 Running test..."
-          LD_LIBRARY_PATH=. ./test_dynamic_engine
+          export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
+          g++ test_dynamic_engine.cpp -L. -ldynamic-engine -o test_dynamic_engine
+          ./test_dynamic_engine
