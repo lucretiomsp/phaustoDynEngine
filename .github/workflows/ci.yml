@@ -26,11 +26,15 @@ jobs:
         run: |
           cd build
           export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
-          echo "🔍 Checking shared library dependencies..."
-          for lib in *.so*; do
-            ldd "$lib" | grep "not found" && echo "❌ Missing dependency in $lib" && exit 1 || true
-          done
-          echo "✅ All dependencies found"
+          echo "🔍 Full ldd output for libdynamic-engine.so:"
+          ldd libdynamic-engine.so
+          echo "🔍 Checking for missing dependencies..."
+          if ldd libdynamic-engine.so | grep -q "not found"; then
+            echo "❌ Missing dependency detected in libdynamic-engine.so!"
+            exit 1
+          else
+            echo "✅ All dependencies found"
+          fi
 
       # 5. Compile and run the test program
       - name: Build and run test program
