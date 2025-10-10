@@ -7,10 +7,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout the repository
+      # 1. Checkout repository
       - uses: actions/checkout@v4
 
-      # 2. Install system dependencies required by Faust / dynamic engine
+      # 2. Install system dependencies
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -23,25 +23,42 @@ jobs:
             libasound2-dev \
             libfftw3-dev
 
-      # 3. Prepare build folder and copy libraries/tests safely
+      # 3. Prepare build folder
       - name: Prepare build folder
         run: |
           mkdir -p build
           cp -a librariesBundle_Linux/. build/
           cp -a tests/. build/
 
-      # 4. Fix versioned .so symlinks if necessary
+      # 4. Fix .so symlinks
       - name: Fix library symlinks
         run: |
           cd build
-          for lib in libsndfile.so.1 libfaust.so.2; do
-            if [ -f "$lib" ] && [ ! -L "${lib%.*}" ]; then
-              echo "Creating symlink for $lib"
-              ln -sf "$lib" "${lib%.*}"
+          # libsndfile
+          if [ -f libsndfile.so.1.0.28 ] && [ ! -L libsndfile.so.1 ]; then
+            echo "Creating symlink: libsndfile.so.1 → libsndfile.so.1.0.28"
+            ln -sf libsndfile.so.1.0.28 libsndfile.so.1
+          fi
+          # libfaust
+          if [ -f libfaust.so.2.0.0 ] && [ ! -L libfaust.so.2 ]; then
+            echo "Creating symlink: libfaust.so.2 → libfaust.so.2.0.0"
+            ln -sf libfaust.so.2.0.0 libfaust.so.2
+          fi
+          # Verify symlinks
+          ls -l libsndfile.so* libfaust.so* || true
+
+      # 5. Verify .so files are valid
+      - name: Verify shared libraries
+        run: |
+          cd build
+          for lib in libsndfile.so.1 libfaust.so.2 libdynamic-engine.so; do
+            if [ ! -s "$lib" ]; then
+              echo "❌ $lib is empty or corrupted!"
+              exit 1
             fi
           done
 
-      # 5. Check library dependencies
+      # 6. Check library dependencies
       - name: Check library dependencies
         run: |
           cd build
@@ -56,7 +73,7 @@ jobs:
             echo "✅ All dependencies found"
           fi
 
-      # 6. Compile and run the test program
+      # 7. Compile and run test program
       - name: Build and run test program
         run: |
           cd build
@@ -64,7 +81,7 @@ jobs:
           echo "🚀 Running test program..."
           LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH ./test_dynamic_engine
 
-      # 7. Upload dynengine libraries as artifacts
+      # 8. Upload dynengine libraries as artifact
       - name: Upload DynEngine libraries as artifact
         uses: actions/upload-artifact@v4
         with:
