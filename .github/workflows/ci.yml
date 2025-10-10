@@ -10,9 +10,18 @@ jobs:
       # 1. Checkout the repository
       - uses: actions/checkout@v3
 
-      # 2. Install build tools
-      - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y build-essential g++
+      # 2. Install system dependencies for Faust / dynamic engine
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            g++ \
+            libpulse-dev \
+            libjack-jackd2-0 \
+            libjack-jackd2-dev \
+            libasound2-dev \
+            libfftw3-dev
 
       # 3. Copy libraries and tests into a build folder
       - name: Prepare build folder
