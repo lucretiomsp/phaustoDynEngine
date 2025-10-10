@@ -83,4 +83,7 @@ jobs:
 
       # 8. Upload dynengine libraries as artifact
       - name: Upload DynEngine libraries as artifact
-        uses: actions/upload-art
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynengine-libs
+          path: build/*.so
