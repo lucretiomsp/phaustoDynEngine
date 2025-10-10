@@ -27,4 +27,46 @@ jobs:
       - name: Prepare build folder
         run: |
           mkdir -p build
-          cp -a librariesBundle_Linux/. build_
+          cp -a librariesBundle_Linux/. build/
+          cp -a tests/. build/
+
+      # 4. Fix versioned .so symlinks if necessary
+      - name: Fix library symlinks
+        run: |
+          cd build
+          for lib in libsndfile.so.1 libfaust.so.2; do
+            if [ -f "$lib" ] && [ ! -L "${lib%.*}" ]; then
+              echo "Creating symlink for $lib"
+              ln -sf "$lib" "${lib%.*}"
+            fi
+          done
+
+      # 5. Check library dependencies
+      - name: Check library dependencies
+        run: |
+          cd build
+          export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
+          echo "🔍 Full ldd output for libdynamic-engine.so:"
+          ldd libdynamic-engine.so
+          echo "🔍 Checking for missing dependencies..."
+          if ldd libdynamic-engine.so | grep -q "not found"; then
+            echo "❌ Missing dependency detected in libdynamic-engine.so!"
+            exit 1
+          else
+            echo "✅ All dependencies found"
+          fi
+
+      # 6. Compile and run the test program
+      - name: Build and run test program
+        run: |
+          cd build
+          g++ test_dynamic_engine.cpp -L. -ldynamic-engine -o test_dynamic_engine
+          echo "🚀 Running test program..."
+          LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH ./test_dynamic_engine
+
+      # 7. Upload dynengine libraries as artifacts
+      - name: Upload DynEngine libraries as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: dynengine-libs
+          path: build/*.so
