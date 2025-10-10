@@ -23,4 +23,8 @@ jobs:
             libasound2-dev \
             libfftw3-dev
 
-      # 3. Prepare build folder and copy libraries/tests saf
+      # 3. Prepare build folder and copy libraries/tests safely
+      - name: Prepare build folder
+        run: |
+          mkdir -p build
+          cp -a librariesBundle_Linux/. build_
