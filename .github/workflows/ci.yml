@@ -18,10 +18,13 @@ jobs:
             build-essential \
             g++ \
             libpulse-dev \
+            libpulse0 \
             libjack-jackd2-0 \
             libjack-jackd2-dev \
             libasound2-dev \
-            libfftw3-dev
+            libfftw3-dev \
+            libsndfile1 \
+            libflac8
 
       # 3. Prepare build folder
       - name: Prepare build folder
@@ -30,7 +33,13 @@ jobs:
           cp -a librariesBundle_Linux/. build/
           cp -a tests/. build/
 
-      # 4. Fix .so symlinks
+      # 4. Remove broken or unnecessary .so files
+      - name: Clean broken .so files
+        run: |
+          cd build
+          rm -f libFLAC.so.* libpulse*.so.* libjack*.so.*
+
+      # 5. Fix local symlinks for bundled libraries
       - name: Fix library symlinks
         run: |
           cd build
@@ -47,7 +56,7 @@ jobs:
           # Verify symlinks
           ls -l libsndfile.so* libfaust.so* || true
 
-      # 5. Verify .so files are valid
+      # 6. Verify .so files are valid (non-empty)
       - name: Verify shared libraries
         run: |
           cd build
@@ -58,7 +67,7 @@ jobs:
             fi
           done
 
-      # 6. Check library dependencies
+      # 7. Check library dependencies
       - name: Check library dependencies
         run: |
           cd build
@@ -73,7 +82,7 @@ jobs:
             echo "✅ All dependencies found"
           fi
 
-      # 7. Compile and run test program
+      # 8. Compile and run test program
       - name: Build and run test program
         run: |
           cd build
@@ -81,7 +90,7 @@ jobs:
           echo "🚀 Running test program..."
           LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH ./test_dynamic_engine
 
-      # 8. Upload dynengine libraries as artifact
+      # 9. Upload dynengine libraries as artifact
       - name: Upload DynEngine libraries as artifact
         uses: actions/upload-artifact@v4
         with:
