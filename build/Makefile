@@ -1,57 +1,27 @@
-name: CI
+# Linux Makefile
 
-on: [push, pull_request]
+CXX = g++
+CXXFLAGS = -std=c++11 -O3 -DINTERP_DSP -DPORTAUDIO_DRIVER -DSOUNDFILE -DDAISY
+SRC_DIR = architecture/faust/dsp
+BUILD_DIR = build
+LIB_DIR = librariesBundle
 
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
+SRCS = $(SRC_DIR)/faust-dynamic-engine.cpp
+TARGET = $(BUILD_DIR)/libdynamic-engine.so
 
-    steps:
-      # 1. Checkout repository
-      - uses: actions/checkout@v4
+LIBS = -lfaust -lrtaudio -lsndfile -ldl -lpthread
+INCLUDES = -I./architecture/faust
+LDFLAGS = -L$(LIB_DIR)
 
-      # 2. Install system dependencies
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential g++ cmake \
-            libpulse-dev libasound2-dev libjack-jackd2-dev \
-            libsndfile1-dev libfftw3-dev libflac-dev libvorbis-dev
+.PHONY: all clean
 
-      # 3. Create build folder
-      - name: Prepare build folder
-        run: mkdir -p build
+all: $(TARGET)
 
-      # 4. Build all libraries
-      - name: Build libraries
-        run: |
-          cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          cmake --build . -- -j$(nproc)
+$(TARGET): $(SRCS) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(LDFLAGS) $(SRCS) $(LIBS) -shared -fPIC -o $@
 
-      # 5. Check library dependencies
-      - name: Verify dependencies
-        run: |
-          cd build
-          export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
-          if ldd libdynamic-engine.so | grep -q "not found"; then
-            echo "❌ Missing dependency detected!"
-            exit 1
-          else
-            echo "✅ All dependencies found"
-          fi
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-      # 6. Build and run test program
-      - name: Build and run test
-        run: |
-          cd build
-          g++ ../tests/test_dynamic_engine.cpp -L. -ldynamic-engine -o test_dynamic_engine
-          LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH ./test_dynamic_engine
-
-      # 7. Upload libraries as artifact
-      - name: Upload DynEngine libraries
-        uses: actions/upload-artifact@v4
-        with:
-          name: dynengine-libs
-          path: build/*.so
+clean:
+	rm -rf $(BUILD_DIR) $(TARGET)
