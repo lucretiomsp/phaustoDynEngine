@@ -10,18 +10,15 @@ jobs:
       # 1. Checkout repository
       - uses: actions/checkout@v4
 
-      # 2. Install system dependencies
+      # 2. Install required system dependencies
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
             g++ \
-        # libpulse-dev \
-            # libjack-jackd2-0 \
-            # libjack-jackd2-dev \
-         #   libasound2-dev \
-         #   libfftw3-dev
+            libpulse-dev \
+            libpulse0
 
       # 3. Prepare build folder
       - name: Prepare build folder
@@ -34,24 +31,18 @@ jobs:
       - name: Fix library symlinks
         run: |
           cd build
-          # libsndfile
-          if [ -f libsndfile.so.1.0.28 ] && [ ! -L libsndfile.so.1 ]; then
-            echo "Creating symlink: libsndfile.so.1 → libsndfile.so.1.0.28"
-            ln -sf libsndfile.so.1.0.28 libsndfile.so.1
-          fi
           # libfaust
           if [ -f libfaust.so.2.0.0 ] && [ ! -L libfaust.so.2 ]; then
-            echo "Creating symlink: libfaust.so.2 → libfaust.so.2.0.0"
             ln -sf libfaust.so.2.0.0 libfaust.so.2
           fi
           # Verify symlinks
-          ls -l libsndfile.so* libfaust.so* || true
+          ls -l libfaust.so* || true
 
       # 5. Verify .so files are valid
       - name: Verify shared libraries
         run: |
           cd build
-          for lib in libsndfile.so.1 libfaust.so.2 libdynamic-engine.so; do
+          for lib in libfaust.so.2 libdynamic-engine.so; do
             if [ ! -s "$lib" ]; then
               echo "❌ $lib is empty or corrupted!"
               exit 1
@@ -63,11 +54,9 @@ jobs:
         run: |
           cd build
           export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
-          echo "🔍 Full ldd output for libdynamic-engine.so:"
           ldd libdynamic-engine.so
-          echo "🔍 Checking for missing dependencies..."
           if ldd libdynamic-engine.so | grep -q "not found"; then
-            echo "❌ Missing dependency detected in libdynamic-engine.so!"
+            echo "❌ Missing dependency detected!"
             exit 1
           else
             echo "✅ All dependencies found"
@@ -78,11 +67,10 @@ jobs:
         run: |
           cd build
           g++ test_dynamic_engine.cpp -L. -ldynamic-engine -o test_dynamic_engine
-          echo "🚀 Running test program..."
           LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH ./test_dynamic_engine
 
-      # 8. Upload dynengine libraries as artifact
-      - name: Upload DynEngine libraries as artifact
+      # 8. Upload DynEngine libraries as artifact
+      - name: Upload DynEngine libraries
         uses: actions/upload-artifact@v4
         with:
           name: dynengine-libs
