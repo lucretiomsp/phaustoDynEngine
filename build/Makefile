@@ -1,7 +1,7 @@
 # Linux Makefile
 
 CXX = g++
-CXXFLAGS = -std=c++11 -O3 -DINTERP_DSP -DPORTAUDIO_DRIVER -DSOUNDFILE -DDAISY
+CXXFLAGS = -std=c++11 -O3 -DINTERP_DSP -DALSA_DRIVER -DDAISY
 SRC_DIR = architecture/faust/dsp
 BUILD_DIR = build
 LIB_DIR = librariesBundle
@@ -9,7 +9,7 @@ LIB_DIR = librariesBundle
 SRCS = $(SRC_DIR)/faust-dynamic-engine.cpp
 TARGET = $(BUILD_DIR)/libdynamic-engine.so
 
-LIBS = -lfaust -lrtaudio -lsndfile -ldl -lpthread
+LIBS = -lfaust -lasound
 INCLUDES = -I./architecture/faust
 LDFLAGS = -L$(LIB_DIR)
 
