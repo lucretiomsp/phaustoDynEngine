@@ -1,43 +1,57 @@
-# Makefile for compiling faust-dynamic-engine on Windows using MinGW
+name: CI
 
-# Compiler
-CXX = g++
-# Compiler flags
-CXXFLAGS = -std=c++11 -O3 -DINTERP_DSP -DPORTAUDIO_DRIVER -DSOUNDFILE -DDAISY
+on: [push, pull_request]
 
-# Directories
-SRC_DIR = architecture/faust/dsp
-BUILD_DIR = build
-LIB_DIR = librariesBundle
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
 
-# Source file
-SRCS = $(SRC_DIR)/faust-dynamic-engine.cpp
+    steps:
+      # 1. Checkout repository
+      - uses: actions/checkout@v4
 
-# Target dynamic library
-TARGET = $(LIB_DIR)/libdynamic-engine.dll
+      # 2. Install system dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential g++ cmake \
+            libpulse-dev libasound2-dev libjack-jackd2-dev \
+            libsndfile1-dev libfftw3-dev libflac-dev libvorbis-dev
 
-# Libraries
-LIBS = -lportaudio -lfaust
-# Include paths
-INCLUDES = -I/Users/domenicocipriani/MyStuff/coding/faust/architecture
-# Library paths
-LDFLAGS = -L$(LIB_DIR)
+      # 3. Create build folder
+      - name: Prepare build folder
+        run: mkdir -p build
 
-# Phony targets
-.PHONY: all clean
+      # 4. Build all libraries
+      - name: Build libraries
+        run: |
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          cmake --build . -- -j$(nproc)
 
-# Default target
-all: $(TARGET)
+      # 5. Check library dependencies
+      - name: Verify dependencies
+        run: |
+          cd build
+          export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
+          if ldd libdynamic-engine.so | grep -q "not found"; then
+            echo "❌ Missing dependency detected!"
+            exit 1
+          else
+            echo "✅ All dependencies found"
+          fi
 
-# Rule to build the dynamic library
-$(TARGET): $(SRCS) | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(LDFLAGS) $(SRCS) $(LIBS) -shared -o $@
+      # 6. Build and run test program
+      - name: Build and run test
+        run: |
+          cd build
+          g++ ../tests/test_dynamic_engine.cpp -L. -ldynamic-engine -o test_dynamic_engine
+          LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH ./test_dynamic_engine
 
-# Create build directory
-$(BUILD_DIR):
-	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-
-# Clean target
-clean:
-	@if exist $(BUILD_DIR) rmdir /S /Q $(BUILD_DIR)
-	@if exist $(TARGET) del $(TARGET)
+      # 7. Upload libraries as artifact
+      - name: Upload DynEngine libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynengine-libs
+          path: build/*.so
