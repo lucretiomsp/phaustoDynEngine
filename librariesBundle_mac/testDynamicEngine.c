@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <unistd.h>
 
 /* Forward declaration to match your API */
 typedef struct dsp dsp;
@@ -13,6 +14,8 @@ typedef dsp* (*createDsp_fn)(
     const char* target,
     int opt_level
 );
+
+
 
 int main(void)
 {
@@ -36,6 +39,14 @@ int main(void)
         return 1;
     }
     printf("✅ createDsp symbol resolved\n");
+
+
+if (access("faustLibs/all.lib", R_OK) != 0) {
+    perror("❌ Faust cannot access faustLibs/all.lib");
+    return 1;
+}
+printf("✅ faustLibs/all.lib is accessible\n");
+
 
     /* Faust DSP code */
     const char* dsp_code =
