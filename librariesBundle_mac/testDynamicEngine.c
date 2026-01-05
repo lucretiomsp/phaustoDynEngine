@@ -49,13 +49,16 @@ printf("✅ faustLibs/all.lib is accessible\n");
 
 
     /* Faust DSP code */
-    const char* dsp_code =
+    const char* dsp_code = "process = _;"
+
+
+    /*
         "import(\"stdfaust.lib\");\n"
         "tempo = hslider(\"tempo\", 10000, 300, 20000, 100);\n"
         "freq = hslider(\"freq\", 300, 200, 900, 100);\n"
         "process = ba.pulsen(1, tempo) : "
         "pm.djembe(freq, 0.3, 0.4, 1) <: dm.freeverb_demo;";
-
+*/
     /* Faust compiler arguments */
     const char* argv[] = {
         "-I", "librariesBundle/faustLibs"
