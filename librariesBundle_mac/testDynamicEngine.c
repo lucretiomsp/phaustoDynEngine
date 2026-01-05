@@ -49,7 +49,7 @@ printf("✅ faustLibs/all.lib is accessible\n");
 
 
     /* Faust DSP code */
-    const char* dsp_code = "process = _;"
+    const char* dsp_code = "process = _;" ;
 
 
     /*
