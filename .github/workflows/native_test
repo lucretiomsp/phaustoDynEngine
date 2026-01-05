@@ -1,0 +1,50 @@
+name: Native Dynamic Engine Test (macOS)
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  macos-native-test:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show system info
+        run: |
+          uname -a
+          uname -m
+          gcc --version
+
+      - name: Verify librariesBundle_mac layout
+        run: |
+          echo "📁 librariesBundle_mac contents:"
+          ls -la librariesBundle_mac
+
+          echo "📁 faustLibs contents:"
+          ls -la librariesBundle_mac/faustLibs
+
+          if [ ! -f "librariesBundle_mac/faustLibs/all.lib" ]; then
+            echo "❌ Missing faustLibs/all.lib"
+            exit 1
+          fi
+
+      - name: Inspect dynamic library dependencies
+        run: |
+          cd librariesBundle_mac
+          echo "🔗 libdynamic-engine.dylib dependencies:"
+          otool -L libdynamic-engine.dylib
+
+      - name: Compile native test
+        run: |
+          cd librariesBundle_mac
+          gcc test_dynamic_engine.c -o test_dynamic_engine -std=c11
+
+      - name: Run native test
+        run: |
+          cd librariesBundle_mac
+          export DYLD_LIBRARY_PATH="$PWD"
+          export DYLD_PRINT_LIBRARIES=1
+          ./test_dynamic_engine
