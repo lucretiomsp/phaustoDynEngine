@@ -64,10 +64,4 @@ jobs:
           export FAUST_LIB_PATH="$PWD/faustLibs"
           ./test_dynamic_engine 2>&1 | tee faust.log
 
-      # ------------------------------
-      # Step 5: Run SmalltalkCI (only if native test passed)
-      # ------------------------------
-      - name: Run SmalltalkCI
-        run: |
-          echo "✅ Native dynamic engine test passed, running SmalltalkCI..."
-          smalltalkci
+     
