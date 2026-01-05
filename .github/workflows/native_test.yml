@@ -1,14 +1,17 @@
-name: Native Dynamic Engine Test (macOS)
+name: CI - Dynamic Engine + Smalltalk
 
 on:
   push:
   pull_request:
 
 jobs:
-  macos-native-test:
+  macos-ci:
     runs-on: macos-latest
-
+    strategy:
+      matrix:
+        smalltalk: [ Pharo64-12 ]
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -18,11 +21,13 @@ jobs:
           uname -m
           gcc --version
 
+      # ------------------------------
+      # Step 1: Verify librariesBundle_mac
+      # ------------------------------
       - name: Verify librariesBundle_mac layout
         run: |
           echo "📁 librariesBundle_mac contents:"
           ls -la librariesBundle_mac
-
           echo "📁 faustLibs contents:"
           ls -la librariesBundle_mac/faustLibs
 
@@ -31,20 +36,38 @@ jobs:
             exit 1
           fi
 
+      # ------------------------------
+      # Step 2: Inspect libdynamic-engine dependencies
+      # ------------------------------
       - name: Inspect dynamic library dependencies
         run: |
           cd librariesBundle_mac
           echo "🔗 libdynamic-engine.dylib dependencies:"
           otool -L libdynamic-engine.dylib
 
+      # ------------------------------
+      # Step 3: Compile native test
+      # ------------------------------
       - name: Compile native test
         run: |
           cd librariesBundle_mac
-          gcc testDynamicEngine.c -o test_dynamic_engine -std=c11
+          gcc test_dynamic_engine.c -o test_dynamic_engine -std=c11
 
+      # ------------------------------
+      # Step 4: Run native test
+      # ------------------------------
       - name: Run native test
         run: |
           cd librariesBundle_mac
           export DYLD_LIBRARY_PATH="$PWD"
-          export DYLD_PRINT_LIBRARIES=1
-          ./test_dynamic_engine
+          export FAUST_DEBUG=1
+          export FAUST_LIB_PATH="$PWD/faustLibs"
+          ./test_dynamic_engine 2>&1 | tee faust.log
+
+      # ------------------------------
+      # Step 5: Run SmalltalkCI (only if native test passed)
+      # ------------------------------
+      - name: Run SmalltalkCI
+        run: |
+          echo "✅ Native dynamic engine test passed, running SmalltalkCI..."
+          smalltalkci
