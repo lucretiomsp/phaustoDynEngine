@@ -51,7 +51,7 @@ jobs:
       - name: Compile native test
         run: |
           cd librariesBundle_mac
-          gcc test_dynamic_engine.c -o test_dynamic_engine -std=c11
+          gcc testDynamicEngine.c -o test_dynamic_engine -std=c11
 
       # ------------------------------
       # Step 4: Run native test
