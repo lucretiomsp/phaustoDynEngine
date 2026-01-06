@@ -1,75 +1,67 @@
-name: CI
+name: CI - Dynamic Engine + Smalltalk (Linux)
 
 on:
   push:
   pull_request:
-  workflow_dispatch:
 
 jobs:
-  build-and-test:
+  ubuntu-ci:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Install system dependencies
-      - name: Install system dependencies
+      - name: Show system info
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            g++ \
-            libasound2-dev \
-            libpulse-dev \
-            wget \
-            patchelf \
-            zip \
-            libfaust-dev
+          uname -a
+          uname -m
+          gcc --version
 
-      # 3. Build static libsndfile
-      - name: Build static libsndfile
+      # ------------------------------
+      # Step 1: Verify librariesBundle_Linux
+      # ------------------------------
+      - name: Verify librariesBundle_Linux layout
         run: |
-          mkdir -p "$HOME/static-libs"
-          wget https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-1.2.2.tar.xz
-          tar xf libsndfile-1.2.2.tar.xz
-          cd libsndfile-1.2.2
-          PKG_CONFIG_PATH="$HOME/static-libs/lib/pkgconfig" \
-          ./configure \
-            --prefix="$HOME/static-libs" \
-            --enable-static \
-            --disable-shared
-          make -j$(nproc)
-          make install
+          echo "📁 librariesBundle_Linux contents:"
+          ls -la librariesBundle_Linux
+          echo "📁 faustLibs contents:"
+          ls -la librariesBundle_Linux/faustLibs
 
-      # 4. Build Dynamic Engine (Makefile is in build/)
-      - name: Build Dynamic Engine
-        working-directory: build
+          if [ ! -f "librariesBundle_Linux/faustLibs/all.lib" ]; then
+            echo "❌ Missing faustLibs/all.lib"
+            exit 1
+          fi
+
+          if [ ! -f "librariesBundle_Linux/libdynamic-engine.so" ]; then
+            echo "❌ Missing libdynamic-engine.so"
+            exit 1
+          fi
+
+      # ------------------------------
+      # Step 2: Inspect libdynamic-engine dependencies
+      # ------------------------------
+      - name: Inspect dynamic library dependencies
         run: |
-          export CPPFLAGS="-I$HOME/static-libs/include"
-          export LDFLAGS="-L$HOME/static-libs/lib -static-libgcc -static-libstdc++"
-          make CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS"
+          cd librariesBundle_Linux
+          echo "🔗 libdynamic-engine.so dependencies:"
+          ldd libdynamic-engine.so || true
 
-      # 5. Verify library dependencies
-      - name: Check shared library dependencies
+      # ------------------------------
+      # Step 3: Compile native test
+      # ------------------------------
+      - name: Compile native test
         run: |
-          ldd librarieBundle_Linux/libdynamic-engine.so || true
+          cd librariesBundle_Linux
+          gcc testDynamicEngine.c -o test_dynamic_engine -std=c11
 
-      # 6. Build and run tests
-      - name: Build and run tests
+      # ------------------------------
+      # Step 4: Run native test
+      # ------------------------------
+      - name: Run native test
         run: |
-          g++ tests/test_dynamic_engine.cpp \
-            -LlibrarieBundle_Linux \
-            -ldynamic-engine \
-            -Iarchitecture \
-            -o test_dynamic_engine
-
-          LD_LIBRARY_PATH=librarieBundle_Linux ./test_dynamic_engine
-
-      # 7. Upload artifacts
-      - name: Upload dynamic engine library
-        uses: actions/upload-artifact@v4
-        with:
-          name: dynamic-engine-linux
-          path: librarieBundle_Linux/libdynamic-engine.so
+          cd librariesBundle_Linux
+          export LD_LIBRARY_PATH="$PWD"
+          export FAUST_DEBUG=1
+          export FAUST_LIB_PATH="$PWD/faustLibs"
+          ./test_dynamic_engine 2>&1 | tee faust.log
