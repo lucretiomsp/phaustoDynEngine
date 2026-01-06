@@ -1,6 +1,9 @@
 name: CI
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -8,46 +11,65 @@ jobs:
 
     steps:
       # 1. Checkout repository
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       # 2. Install system dependencies
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential g++ libasound2-dev libpulse-dev wget patchelf zip
+          sudo apt-get install -y \
+            build-essential \
+            g++ \
+            libasound2-dev \
+            libpulse-dev \
+            wget \
+            patchelf \
+            zip \
+            libfaust-dev
 
-      # 3. Build static libsndfile and dependencies
+      # 3. Build static libsndfile
       - name: Build static libsndfile
         run: |
-          mkdir -p $HOME/static-libs
+          mkdir -p "$HOME/static-libs"
           wget https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-1.2.2.tar.xz
           tar xf libsndfile-1.2.2.tar.xz
           cd libsndfile-1.2.2
-          PKG_CONFIG_PATH=$HOME/static-libs/lib/pkgconfig ./configure --prefix=$HOME/static-libs --enable-static --disable-shared
-          make -j$(nproc) && make install
+          PKG_CONFIG_PATH="$HOME/static-libs/lib/pkgconfig" \
+          ./configure \
+            --prefix="$HOME/static-libs" \
+            --enable-static \
+            --disable-shared
+          make -j$(nproc)
+          make install
 
-      # 4. Build your library with Makefile
+      # 4. Build Dynamic Engine (Makefile is in build/)
       - name: Build Dynamic Engine
-        working-directory: builDynEng
+        working-directory: build
         run: |
           export CPPFLAGS="-I$HOME/static-libs/include"
           export LDFLAGS="-L$HOME/static-libs/lib -static-libgcc -static-libstdc++"
-          make LDFLAGS="$LDFLAGS" CPPFLAGS="$CPPFLAGS"
+          make CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS"
 
-      # 5. Verify static linking
-      - name: Check library dependencies
+      # 5. Verify library dependencies
+      - name: Check shared library dependencies
         run: |
-          ldd librariesLinux/libdynamic-engine.so || true
+          ldd librarieBundle_Linux/libdynamic-engine.so || true
 
-      # 6. Run tests
-      - name: Build and run test
+      # 6. Build and run tests
+      - name: Build and run tests
         run: |
-          g++ tests/test_dynamic_engine.cpp -LbuilDynEng/librariesLinux -ldynamic-engine -IbuilDynEng/architecture -o test_dynamic_engine
-          LD_LIBRARY_PATH=builDynEng/librariesLinux ./test_dynamic_engine
+          g++ tests/test_dynamic_engine.cpp \
+            -LlibrarieBundle_Linux \
+            -ldynamic-engine \
+            -Iarchitecture \
+            -o test_dynamic_engine
+
+          LD_LIBRARY_PATH=librarieBundle_Linux ./test_dynamic_engine
 
       # 7. Upload artifacts
-      - name: Upload library
+      - name: Upload dynamic engine library
         uses: actions/upload-artifact@v4
         with:
-          name: dynamic-engine
-          path: builDynEng/librariesLinux/libdynamic-engine.so
+          name: dynamic-engine-linux
+          path: librarieBundle_Linux/libdynamic-engine.so
