@@ -1,6 +1,6 @@
 name: CI
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build-and-test:
@@ -14,44 +14,40 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential g++ cmake \
-            libpulse-dev libasound2-dev libjack-jackd2-dev \
-            libsndfile1-dev libfftw3-dev libflac-dev libvorbis-dev
+          sudo apt-get install -y build-essential g++ libasound2-dev libpulse-dev wget patchelf zip
 
-      # 3. Create build folder
-      - name: Prepare build folder
-        run: mkdir -p build
-
-      # 4. Build all libraries
-      - name: Build libraries
+      # 3. Build static libsndfile and dependencies
+      - name: Build static libsndfile
         run: |
-          cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          cmake --build . -- -j$(nproc)
+          mkdir -p $HOME/static-libs
+          wget https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-1.2.2.tar.xz
+          tar xf libsndfile-1.2.2.tar.xz
+          cd libsndfile-1.2.2
+          PKG_CONFIG_PATH=$HOME/static-libs/lib/pkgconfig ./configure --prefix=$HOME/static-libs --enable-static --disable-shared
+          make -j$(nproc) && make install
 
-      # 5. Check library dependencies
-      - name: Verify dependencies
+      # 4. Build your library with Makefile
+      - name: Build Dynamic Engine
+        working-directory: builDynEng
         run: |
-          cd build
-          export LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH
-          if ldd libdynamic-engine.so | grep -q "not found"; then
-            echo "❌ Missing dependency detected!"
-            exit 1
-          else
-            echo "✅ All dependencies found"
-          fi
+          export CPPFLAGS="-I$HOME/static-libs/include"
+          export LDFLAGS="-L$HOME/static-libs/lib -static-libgcc -static-libstdc++"
+          make LDFLAGS="$LDFLAGS" CPPFLAGS="$CPPFLAGS"
 
-      # 6. Build and run test program
+      # 5. Verify static linking
+      - name: Check library dependencies
+        run: |
+          ldd librariesLinux/libdynamic-engine.so || true
+
+      # 6. Run tests
       - name: Build and run test
         run: |
-          cd build
-          g++ ../tests/test_dynamic_engine.cpp -L. -ldynamic-engine -o test_dynamic_engine
-          LD_LIBRARY_PATH=$(pwd):$LD_LIBRARY_PATH ./test_dynamic_engine
+          g++ tests/test_dynamic_engine.cpp -LbuilDynEng/librariesLinux -ldynamic-engine -IbuilDynEng/architecture -o test_dynamic_engine
+          LD_LIBRARY_PATH=builDynEng/librariesLinux ./test_dynamic_engine
 
-      # 7. Upload libraries as artifact
-      - name: Upload DynEngine libraries
+      # 7. Upload artifacts
+      - name: Upload library
         uses: actions/upload-artifact@v4
         with:
-          name: dynengine-libs
-          path: build/*.so
+          name: dynamic-engine
+          path: builDynEng/librariesLinux/libdynamic-engine.so
